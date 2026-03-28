@@ -1,0 +1,5 @@
+{
+  "name": "ArtFlow",
+  "description": "A mobile-first commission manager for artists to track deadlines with visual urgency indicators and manage shareable booking schedules.",
+  "requestFramePermissions": []
+}
