@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { BookingSlot, ViewMode, Project, Achievement } from '@/types';
+import { BookingSlot, ViewMode, Project, Achievement } from '../types';
 // Added missing ListTodo import
 import { ShieldBan, Check, Lock, X, ChevronLeft, ChevronRight, Calendar, Sparkles, Plus, Trash2, CheckCircle2, ListTodo } from 'lucide-react';
-import { getProjectLineColor } from '@/utils';
+import { getProjectLineColor } from '../utils';
 
 interface ScheduleBoardProps {
   bookings: BookingSlot[];

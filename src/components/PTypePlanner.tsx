@@ -31,9 +31,9 @@ import {
   Link2,
   Save
 } from 'lucide-react';
-import { PlannerStage, Project, BookingSlot, PlanningSession } from '@/types';
-import { formatDate, getProjectLineColor } from '@/utils';
-import { supabase } from '@/supabase';
+import { PlannerStage, Project, BookingSlot, PlanningSession } from '../types';
+import { formatDate, getProjectLineColor } from '../utils';
+import { supabase } from '../supabase';
 
 interface PTypePlannerProps {
   onBack: () => void;

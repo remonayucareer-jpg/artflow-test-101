@@ -1,6 +1,6 @@
 import React from 'react';
-import { Project } from '@/types';
-import { calculateUrgencyColor, formatDate, getStatusLabel } from '@/utils';
+import { Project } from '../types';
+import { calculateUrgencyColor, formatDate, getStatusLabel } from '../utils';
 import { Clock, CheckCircle2, User, Trash2, Edit2, Copy, Link, Coins } from 'lucide-react';
 
 interface ProjectCardProps {
