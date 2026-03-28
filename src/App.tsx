@@ -3,6 +3,8 @@ import { Project, BookingSlot, ViewMode, Achievement } from './types';
 import ProjectCard from './components/ProjectCard';
 import ScheduleBoard from './components/ScheduleBoard';
 import PTypePlanner from './components/PTypePlanner';
+import Auth from './components/Auth';
+import { supabase } from './supabase';
 import { generateArtistId, generateClientId } from './utils';
 import { 
   Layout, 
@@ -15,10 +17,13 @@ import {
   CheckCircle2,
   BrainCircuit,
   ListTodo,
-  Coins
+  Coins,
+  LogOut
 } from 'lucide-react';
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'projects' | 'schedule' | 'planning'>('projects');
   const [projectSubTab, setProjectSubTab] = useState<'active' | 'completed'>('active');
   
@@ -46,6 +51,22 @@ const App: React.FC = () => {
     startDate: '',
     deadline: ''
   });
+
+  // Auth Initialization
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Initialization
   useEffect(() => {
@@ -170,6 +191,25 @@ const App: React.FC = () => {
     if (newMode === 'artist') handleDisconnect();
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+        <div className="flex flex-col items-center gap-4">
+          <Paintbrush className="text-indigo-600 animate-bounce" size={48} />
+          <p className="text-slate-400 font-bold animate-pulse">正在加载 ArtFlow...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth onSession={setSession} />;
+  }
+
   const allVisibleProjects = viewMode === 'artist' 
     ? projects 
     : projects.filter(p => p.targetClientId === myClientId);
@@ -206,7 +246,7 @@ const App: React.FC = () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 space-y-2">
           <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase">当前角色</span>
@@ -222,6 +262,13 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-rose-500 hover:bg-rose-50 transition-all"
+          >
+            <LogOut size={20} /> 退出登录
+          </button>
         </div>
       </aside>
 

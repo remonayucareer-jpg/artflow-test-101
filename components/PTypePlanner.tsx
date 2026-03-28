@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { PlannerStage, Project, BookingSlot, PlanningSession } from '../types';
 import { formatDate, getProjectLineColor } from '../utils';
+import { supabase } from '../supabase';
 
 interface PTypePlannerProps {
   onBack: () => void;
@@ -71,11 +72,34 @@ const PTypePlanner: React.FC<PTypePlannerProps> = ({ onBack, projects = [], book
   const timerRef = useRef<number | null>(null);
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Load saved sessions and draft on mount
   useEffect(() => {
-    const storedSessions = localStorage.getItem('artflow_planning_sessions');
-    if (storedSessions) setSessions(JSON.parse(storedSessions));
+    const fetchSessions = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase.from('user_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        if (error) {
+          console.error('Error fetching sessions:', error);
+          // Fallback to local storage if supabase fails
+          const storedSessions = localStorage.getItem('artflow_planning_sessions');
+          if (storedSessions) setSessions(JSON.parse(storedSessions));
+        } else if (data) {
+          const mappedSessions = data.map(row => ({
+            ...row.plan_data,
+            id: row.id.toString(), // Ensure ID is string as per type
+          }));
+          setSessions(mappedSessions);
+          localStorage.setItem('artflow_planning_sessions', JSON.stringify(mappedSessions));
+        }
+      } else {
+        const storedSessions = localStorage.getItem('artflow_planning_sessions');
+        if (storedSessions) setSessions(JSON.parse(storedSessions));
+      }
+    };
+
+    fetchSessions();
 
     const storedDraft = localStorage.getItem('artflow_planning_draft');
     if (storedDraft) {
@@ -144,9 +168,27 @@ const PTypePlanner: React.FC<PTypePlannerProps> = ({ onBack, projects = [], book
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive, timeLeft]);
 
-  const persistSessions = (newSessions: PlanningSession[]) => {
+  const persistSessions = async (newSessions: PlanningSession[]) => {
       localStorage.setItem('artflow_planning_sessions', JSON.stringify(newSessions));
       setSessions(newSessions);
+  };
+
+  const deleteSession = async (sessionId: string) => {
+    if (!confirm('确定要删除这个规划吗？')) return;
+    
+    setIsSyncing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('user_plans').delete().eq('id', sessionId).eq('user_id', user.id);
+      }
+      const newSessions = sessions.filter(s => s.id !== sessionId);
+      persistSessions(newSessions);
+    } catch (err) {
+      console.error('Error deleting session:', err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const getYYYYMMDD = (date: Date) => {
@@ -268,13 +310,32 @@ const PTypePlanner: React.FC<PTypePlannerProps> = ({ onBack, projects = [], book
       setTimerActive(false);
   };
 
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
+      setIsSyncing(true);
       const newSession: PlanningSession = {
           id: Date.now().toString(), projectId: syncedProject?.id,
           clientName: syncedProject ? syncedProject.clientName : '未命名规划',
           stages, estimates, blockedDates: sessionBlockedDates,
           createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), completedDays: [],
       };
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error } = await supabase.from('user_plans').insert({
+            user_id: user.id,
+            plan_data: newSession,
+            project_id: syncedProject?.id || null,
+            client_name: newSession.clientName
+          });
+          if (error) throw error;
+        }
+      } catch (err) {
+        console.error('Error saving session to Supabase:', err);
+      } finally {
+        setIsSyncing(false);
+      }
+
       persistSessions([newSession, ...sessions]);
       
       // Clear draft after completion
@@ -372,7 +433,13 @@ const PTypePlanner: React.FC<PTypePlannerProps> = ({ onBack, projects = [], book
                           <p className="text-[10px] font-bold text-slate-400 uppercase">{s.stages.length} 阶段 · {formatDate(s.createdAt)}</p>
                         </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); if(confirm('删除规划？')) persistSessions(sessions.filter(ses => ses.id !== s.id)); }} className="p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+                      <button 
+                        disabled={isSyncing}
+                        onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} 
+                        className="p-2 text-slate-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                      >
+                        <Trash2 size={18}/>
+                      </button>
                     </div>
                   ))}
                 </div>
