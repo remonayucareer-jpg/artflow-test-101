@@ -3,7 +3,7 @@ import { Project, BookingSlot, ViewMode, Achievement } from './types';
 import ProjectCard from './components/ProjectCard';
 import ScheduleBoard from './components/ScheduleBoard';
 import PTypePlanner from './components/PTypePlanner';
-import Auth from './components/Auth';
+import { Auth } from './components/Auth';
 import { supabase } from './supabase';
 import { generateArtistId, generateClientId } from './utils';
 import { 
